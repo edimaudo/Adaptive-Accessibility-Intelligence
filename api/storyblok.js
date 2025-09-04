@@ -20,7 +20,7 @@ export default async function handler(req) {
     });
   }
 
-  // FIX: Updated the API URL to fetch all stories from the space
+  // FIX: Updated the API URL to fetch all stories from the space and removed the URL parameter check
   const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?version=draft&token=${previewToken}&space_id=${spaceId}`;
 
   try {
