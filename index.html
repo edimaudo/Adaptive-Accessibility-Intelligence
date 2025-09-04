@@ -178,7 +178,7 @@
                 '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
 
             scanButton.addEventListener('click', async () => {
-                const content = scanInput.value.trim();
+                const content = scanInput.value;
                 if (!content) {
                     messageBox.style.display = 'flex';
                     return;
@@ -188,15 +188,13 @@
                 scanButtonText.textContent = 'Analyzing...';
                 scanLoading.classList.remove('hidden');
 
-                try {
-                    // FIX: Correctly check if the input is a URL and send the right key
-                    const isUrl = urlRegex.test(content);
-                    const body = isUrl ? { url: content } : { html: content };
+                const payload = urlRegex.test(content) ? { url: content } : { html: content };
 
+                try {
                     const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
+                        body: JSON.stringify(payload)
                     });
 
                     if (!response.ok) {
@@ -218,17 +216,19 @@
                     currentStories.unshift(newStory); 
                     localStorage.setItem('accessibility_stories', JSON.stringify(currentStories));
 
-                    renderDashboard(currentStories);
+                    fetchDashboardData(); // Call fetchDashboardData to re-render the dashboard with all stories
                 } catch (error) {
                     console.error('API Error:', error);
                     let errorMessage = 'An error occurred during the analysis. Please check your Vercel environment variables or try again later.';
 
+                    // Check for a specific network-related error message
                     if (error.message.includes('Failed to fetch')) {
                         errorMessage = 'Failed to connect to the analysis server. Please ensure the app is deployed and running on a valid domain.';
                     } else {
                         errorMessage = error.message;
                     }
 
+                    // Use the custom message box instead of alert
                     const modal = document.getElementById('message-box');
                     modal.querySelector('h3').textContent = 'Analysis Failed';
                     modal.querySelector('p').textContent = errorMessage;
@@ -244,6 +244,7 @@
 
             closeMessageBoxButton.addEventListener('click', () => {
                 messageBox.style.display = 'none';
+                // Reset modal content to default for future use
                 messageBox.querySelector('h3').textContent = 'Input Required';
                 messageBox.querySelector('p').textContent = 'Please enter a URL or HTML content to analyze.';
             });
@@ -307,46 +308,54 @@
             const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             try {
-                // FIX: Use POST method to match the Storyblok API handler
-                const response = await fetch(`${BASE_API_URL}/api/storyblok`, {
-                    method: 'POST'
-                });
+                const response = await fetch(`${BASE_API_URL}/api/storyblok`);
+                if (!response.ok) {
+                    throw new Error(`Storyblok API call failed with status ${response.status}`);
+                }
                 const data = await response.json();
-                const stories = data.stories.map(story => ({
+                
+                const storiesFromAPI = data.stories.map(story => ({
                     id: story.id,
                     name: story.name,
                     accessibility_score: story.content.accessibility_score || Math.floor(Math.random() * 50) + 50,
-                    warnings: story.content.warnings || ["(No issues found on initial load)"],
+                    warnings: story.content.warnings || [],
                     critical_issues: story.content.critical_issues || [],
                     last_analyzed: new Date(story.created_at).toISOString().split('T')[0]
                 }));
 
-                const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories'));
-                let storiesToRender = cachedStories && cachedStories.length > 0 ? cachedStories : stories;
-
-                renderDashboard(storiesToRender);
+                const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                
+                // FIX: Combine both sets of stories instead of choosing one
+                const allStories = [...cachedStories, ...storiesFromAPI];
+                
+                renderDashboard(allStories);
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
-                let errorMessage = 'Failed to load data. Falling back to mock data.';
                 
-                if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('URL is not valid'))) {
-                     errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain. Falling back to mock data.';
+                const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                if (cachedStories.length > 0) {
+                    loadingIndicator.innerHTML = `<p class="text-gray-500">Failed to load Storyblok data. Displaying cached on-demand scans.</p>`;
+                    renderDashboard(cachedStories);
                 } else {
-                    errorMessage = `An error occurred: ${error.message}. Falling back to mock data.`;
+                    let errorMessage = 'Failed to load data. Falling back to mock data.';
+                    if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('URL is not valid'))) {
+                        errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain. Falling back to mock data.';
+                    } else {
+                        errorMessage = `An error occurred: ${error.message}. Falling back to mock data.`;
+                    }
+                    const mockData = [
+                        { id: 1, name: 'Homepage', accessibility_score: 95, warnings: ["Low contrast text on non-accessible background."], critical_issues: [], last_analyzed: '2025-09-03' },
+                        { id: 2, name: 'About Us', accessibility_score: 82, warnings: ["Image does not have an alt attribute.", "Button lacks an accessible name."], critical_issues: ["Missing a required ARIA role."], last_analyzed: '2025-09-02' },
+                        { id: 3, name: 'Blog Post: The Future of AI', accessibility_score: 78, warnings: ["The heading structure is not logical."], critical_issues: ["Keyboard focus is not visible."], last_analyzed: '2025-09-01' },
+                        { id: 4, name: 'Contact Page', accessibility_score: 98, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' },
+                        { id: 5, name: 'Product Landing Page', accessibility_score: 85, warnings: ["Form fields do not have labels."], critical_issues: ["Insufficient contrast ratio."], last_analyzed: '2025-09-02' },
+                        { id: 6, name: 'Customer Support Portal', accessibility_score: 75, warnings: ["Links are not descriptive."], critical_issues: ["Video content lacks captions."], last_analyzed: '2025-09-01' },
+                        { id: 7, name: 'Shopping Cart', accessibility_score: 92, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' }
+                    ];
+                    loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
+                    renderDashboard(mockData);
                 }
-
-                const mockData = [
-                    { id: 1, name: 'Homepage', accessibility_score: 95, warnings: ["Low contrast text on non-accessible background."], critical_issues: [], last_analyzed: '2025-09-03' },
-                    { id: 2, name: 'About Us', accessibility_score: 82, warnings: ["Image does not have an alt attribute.", "Button lacks an accessible name."], critical_issues: ["Missing a required ARIA role."], last_analyzed: '2025-09-02' },
-                    { id: 3, name: 'Blog Post: The Future of AI', accessibility_score: 78, warnings: ["The heading structure is not logical."], critical_issues: ["Keyboard focus is not visible."], last_analyzed: '2025-09-01' },
-                    { id: 4, name: 'Contact Page', accessibility_score: 98, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' },
-                    { id: 5, name: 'Product Landing Page', accessibility_score: 85, warnings: ["Form fields do not have labels."], critical_issues: ["Insufficient contrast ratio."], last_analyzed: '2025-09-02' },
-                    { id: 6, name: 'Customer Support Portal', accessibility_score: 75, warnings: ["Links are not descriptive."], critical_issues: ["Video content lacks captions."], last_analyzed: '2025-09-01' },
-                    { id: 7, name: 'Shopping Cart', accessibility_score: 92, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' }
-                ];
-                loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
-                renderDashboard(mockData);
             }
         }
 
