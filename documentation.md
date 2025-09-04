@@ -1,10 +1,11 @@
-Adaptive Accessibility Intelligence Dashboard
-Introduction
+# Adaptive Accessibility Intelligence Dashboard
+
+## Introduction
 This document provides a comprehensive overview of the Adaptive Accessibility Intelligence Dashboard. This is a web application designed to help content creators and developers monitor and improve the accessibility of their web content. It integrates with Storyblok to display analyzed content stories and features a unique, on-demand scanning tool powered by the Gemini API.
 
 The application is built as a single-page application (index.html) that communicates with two secure Vercel serverless functions to perform its core tasks. This architecture ensures sensitive API keys are never exposed on the client side.
 
-Key Features
+## Key Features
 Dashboard Overview: Displays key metrics at a glance, including the total number of stories analyzed, average accessibility score, and the total count of warnings and critical issues.
 
 Storyblok Content Integration: Fetches content stories from your Storyblok space via a secure serverless function. It displays a list of stories with their respective accessibility scores.
@@ -15,7 +16,7 @@ Detailed Issue Breakdown: Clicking on any story or a new scan result opens a mod
 
 Secure & Scalable Architecture: The application's serverless architecture on Vercel is secure and scalable, correctly handling API keys via environment variables and ensuring a smooth user experience.
 
-Project Structure & Integrations
+## Project Structure & Integrations
 The project is structured to work seamlessly with a Vercel deployment. It consists of the following components:
 
 /
@@ -25,7 +26,7 @@ The project is structured to work seamlessly with a Vercel deployment. It consis
 ├── index.html
 └── documentation.md
 
-Integrations Used:
+## Integrations Used:
 
 Storyblok API: Used to fetch content stories from the specified Storyblok space.
 
@@ -35,7 +36,7 @@ Gemini API: Used by the gemini-scan.js serverless function to perform the on-dem
 
 Tailwind CSS: Provides a utility-first CSS framework for a clean and responsive user interface.
 
-How It Works
+## How It Works
 The application's logic is divided between the front end (index.html) and the serverless functions (/api).
 
 Initial Load: When the page loads, the fetchDashboardData() function calls the /api/storyblok endpoint.
