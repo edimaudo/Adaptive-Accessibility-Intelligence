@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export const config = {
   runtime: 'edge',
 };
@@ -51,7 +49,6 @@ export default async function handler(req) {
       });
     }
 
-    // Return the content of the first story found
     return new Response(JSON.stringify({ content: stories[0].content }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
