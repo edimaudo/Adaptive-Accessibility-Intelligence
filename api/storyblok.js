@@ -33,7 +33,6 @@ export default async function handler(req) {
 
     const data = await response.json();
     
-    // Return the list of stories
     return new Response(JSON.stringify({ stories: data.stories }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
