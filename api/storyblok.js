@@ -10,15 +10,6 @@ export default async function handler(req) {
     });
   }
 
-  const { url } = await req.json();
-
-  if (!url) {
-    return new Response(JSON.stringify({ error: 'Missing URL parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   const previewToken = process.env.STORYBLOK_PREVIEW_TOKEN;
   const spaceId = process.env.STORYBLOK_SPACE_ID;
 
@@ -29,7 +20,7 @@ export default async function handler(req) {
     });
   }
 
-  const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?starts_with=${url}&version=draft&token=${previewToken}&space_id=${spaceId}`;
+  const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?version=draft&token=${previewToken}&space_id=${spaceId}`;
 
   try {
     const response = await fetch(storyblokApiUrl);
@@ -40,16 +31,8 @@ export default async function handler(req) {
     }
 
     const data = await response.json();
-    const stories = data.stories;
-
-    if (!stories || stories.length === 0) {
-      return new Response(JSON.stringify({ error: 'Story not found.' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ content: stories[0].content }), {
+    
+    return new Response(JSON.stringify({ stories: data.stories }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
