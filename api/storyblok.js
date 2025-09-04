@@ -3,8 +3,7 @@ export const config = {
 };
 
 export default async function handler(req) {
-  // FIX: Change to allow GET requests
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
       status: 405,
       headers: { 'Content-Type': 'application/json' },
@@ -21,7 +20,6 @@ export default async function handler(req) {
     });
   }
 
-  // FIX: Updated the API URL to fetch all stories from the space and removed the URL parameter check
   const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?version=draft&token=${previewToken}&space_id=${spaceId}`;
 
   try {
@@ -41,7 +39,7 @@ export default async function handler(req) {
 
   } catch (error) {
     console.error("Error fetching from Storyblok API:", error);
-    return new Response(JSON.stringify({ error: error.message || 'An error occurred fetching Storyblok content.' }), {
+    return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
