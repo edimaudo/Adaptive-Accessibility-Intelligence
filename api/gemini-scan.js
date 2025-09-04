@@ -10,10 +10,15 @@ export default async function handler(req) {
     });
   }
 
-  const { url } = await req.json();
+  const { url, html } = await req.json();
+  let auditContent = '';
 
-  if (!url) {
-    return new Response(JSON.stringify({ error: 'Missing URL parameter' }), {
+  if (url) {
+    auditContent = `URL to audit: ${url}`;
+  } else if (html) {
+    auditContent = `HTML content to audit:\n\n\`\`\`html\n${html}\n\`\`\``;
+  } else {
+    return new Response(JSON.stringify({ error: 'Missing URL or HTML content' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -29,33 +34,27 @@ export default async function handler(req) {
 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
-  // Step 1: Perform the search to get grounded content
-  const searchPayload = {
-    contents: [{ parts: [{ text: `Search for accessibility audit report of the URL: ${url}` }] }],
-    tools: [{ "google_search": {} }]
-  };
-
   let groundedContent = '';
-  try {
-    const searchResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(searchPayload),
-    });
-
-    if (!searchResponse.ok) {
-      throw new Error(`Search API call failed with status ${searchResponse.status}`);
+  if (url) {
+    const searchPayload = {
+      contents: [{ parts: [{ text: `Search for accessibility audit report of the URL: ${url}` }] }],
+      tools: [{ "google_search": {} }]
+    };
+    try {
+        const searchResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(searchPayload),
+        });
+        const searchResult = await searchResponse.json();
+        groundedContent = searchResult?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    } catch (searchError) {
+        console.error("Error during search grounding:", searchError);
     }
-    const searchResult = await searchResponse.json();
-    groundedContent = searchResult?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } catch (searchError) {
-    console.error("Error during search grounding:", searchError);
-    // Continue with the main audit even if search grounding fails
   }
 
-  // Step 2: Pass the grounded content to the main audit prompt
   const systemPrompt = `
-    You are an AI accessibility auditor. Your task is to perform an accessibility audit of a website at the given URL, using any provided search context. Provide the results in a JSON format.
+    You are an AI accessibility auditor. Your task is to perform an accessibility audit of the given content. Provide the results in a JSON format.
     The JSON object should have two keys: "summary" and "report".
     The "summary" key should contain a concise paragraph summarizing the overall accessibility status of the page.
     The "report" key should contain a detailed, structured report in Markdown format, with sections for each major accessibility issue found.
@@ -63,7 +62,7 @@ export default async function handler(req) {
   `;
 
   const finalPayload = {
-    contents: [{ parts: [{ text: `${systemPrompt}\n\nURL to audit: ${url}\n\nSearch Context:\n${groundedContent}` }] }],
+    contents: [{ parts: [{ text: `${systemPrompt}\n\n${auditContent}\n\nSearch Context:\n${groundedContent}` }] }],
   };
 
   try {
