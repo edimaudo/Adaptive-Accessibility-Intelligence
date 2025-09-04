@@ -20,6 +20,7 @@ export default async function handler(req) {
     });
   }
 
+  // FIX: Updated the API URL to fetch all stories from the space
   const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?version=draft&token=${previewToken}&space_id=${spaceId}`;
 
   try {
@@ -32,6 +33,7 @@ export default async function handler(req) {
 
     const data = await response.json();
     
+    // Return the list of stories
     return new Response(JSON.stringify({ stories: data.stories }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
