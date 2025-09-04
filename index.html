@@ -64,7 +64,6 @@
     <div id="app" class="max-w-7xl mx-auto">
         <h1 class="text-4xl font-extrabold text-gray-900 mb-6">Spectra</h1>
         
-        <!-- Dashboard Overview Metrics -->
         <div class="bg-white p-6 rounded-lg card mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Space Overview</h2>
             <div id="overview-metrics" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -99,7 +98,6 @@
             </div>
         </div>
 
-        <!-- On-Demand Scanning Section -->
         <div class="bg-white p-6 rounded-lg card mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">On-Demand Accessibility Scan</h2>
             <div class="space-y-4">
@@ -114,7 +112,6 @@
             </div>
         </div>
 
-        <!-- Content Stories List -->
         <div class="bg-white p-6 rounded-lg card">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Content Stories</h2>
             <div id="loading-indicator" class="text-gray-500 text-center py-8">
@@ -122,12 +119,10 @@
                 <p>Fetching content data...</p>
             </div>
             <div id="story-list" class="space-y-4">
-                <!-- Story items will be dynamically injected here -->
-            </div>
+                </div>
         </div>
     </div>
 
-    <!-- The custom message box (instead of alert) -->
     <div id="message-box" class="modal">
         <div class="modal-content text-center">
             <h3 class="text-xl font-bold mb-4">Input Required</h3>
@@ -136,7 +131,6 @@
         </div>
     </div>
 
-    <!-- The modal for showing story details -->
     <div id="details-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">&times;</span>
@@ -184,11 +178,15 @@
                 '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
 
             scanButton.addEventListener('click', async () => {
-                const content = scanInput.value;
+                const content = scanInput.value.trim();
                 if (!content) {
                     messageBox.style.display = 'flex';
                     return;
                 }
+
+                // FIX 2: Correctly determine input type and create the request body
+                const isUrl = urlRegex.test(content);
+                const body = isUrl ? { url: content } : { html: content };
 
                 scanButton.disabled = true;
                 scanButtonText.textContent = 'Analyzing...';
@@ -198,7 +196,7 @@
                     const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: content })
+                        body: JSON.stringify(body)
                     });
 
                     if (!response.ok) {
@@ -313,7 +311,11 @@
             const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             try {
-                const response = await fetch(`${BASE_API_URL}/api/storyblok`);
+                // FIX 1: Change to POST method to match the backend handler
+                const response = await fetch(`${BASE_API_URL}/api/storyblok`, {
+                    method: 'POST'
+                });
+
                 const data = await response.json();
                 const stories = data.stories.map(story => ({
                     id: story.id,
