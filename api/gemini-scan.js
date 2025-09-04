@@ -10,6 +10,7 @@ export default async function handler(req) {
     });
   }
 
+  // FIX: Accept both URL and HTML parameters
   const { url, html } = await req.json();
   let auditContent = '';
 
