@@ -20,7 +20,6 @@ export default async function handler(req) {
     });
   }
 
-  // Update the API URL to fetch all stories from the space
   const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?version=draft&token=${previewToken}&space_id=${spaceId}`;
 
   try {
