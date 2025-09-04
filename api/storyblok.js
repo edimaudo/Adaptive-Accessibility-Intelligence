@@ -3,7 +3,7 @@ export const config = {
 };
 
 export default async function handler(req) {
-  // FIX: Change to allow GET requests from the frontend
+  // The fix is on this line: The function now correctly accepts a GET request.
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
       status: 405,
