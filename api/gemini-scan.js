@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export const config = {
   runtime: 'edge',
 };
@@ -29,11 +27,7 @@ export default async function handler(req) {
     });
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview-05-20",
-    tools: [{ google_search: {} }]
-  });
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
   const systemPrompt = `
     You are an AI accessibility auditor. Your task is to perform an accessibility audit of a website at a given URL and provide the results in a JSON format.
@@ -43,20 +37,26 @@ export default async function handler(req) {
     Crucially, return ONLY the JSON object. Do not include any other text, explanations, or code fences outside of the JSON.
   `;
 
+  const payload = {
+    contents: [{ parts: [{ text: `${systemPrompt}\n\nURL to audit: ${url}` }] }],
+    tools: [{ google_search: {} }],
+  };
+
   try {
-    const prompt = `${systemPrompt}\n\nURL to audit: ${url}`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-    const result = await model.generateContent(prompt);
-    const textResult = result.response.text();
-
-    let data;
-    try {
-      // The API should return a JSON string based on the prompt.
-      data = JSON.parse(textResult);
-    } catch (parseError) {
-      console.error("Failed to parse JSON response from Gemini API:", textResult);
-      throw new Error("Invalid response format from AI. Please try again.");
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gemini API call failed: ${errorData.error.message}`);
     }
+
+    const result = await response.json();
+    const textResult = result.candidates[0].content.parts[0].text;
+    const data = JSON.parse(textResult);
 
     return new Response(JSON.stringify(data), {
       status: 200,
