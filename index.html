@@ -178,21 +178,21 @@
                 '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
 
             scanButton.addEventListener('click', async () => {
-                const content = scanInput.value.trim();
+                const content = scanInput.value.trim(); // Trim whitespace
                 if (!content) {
                     messageBox.style.display = 'flex';
                     return;
                 }
-
-                // FIX 2: Correctly determine input type and create the request body
-                const isUrl = urlRegex.test(content);
-                const body = isUrl ? { url: content } : { html: content };
 
                 scanButton.disabled = true;
                 scanButtonText.textContent = 'Analyzing...';
                 scanLoading.classList.remove('hidden');
 
                 try {
+                    // Corrected logic to send the correct key to the backend
+                    const isUrl = urlRegex.test(content);
+                    const body = isUrl ? { url: content } : { html: content };
+
                     const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -207,7 +207,7 @@
                     const scanResult = await response.json();
                     
                     const newStory = {
-                        name: `On-Demand Scan (${new Date().toLocaleDateString()})`,
+                        name: `On-Demand Scan (${new Date().toISOString().split('T')[0]})`,
                         accessibility_score: scanResult.score,
                         warnings: scanResult.warnings,
                         critical_issues: scanResult.critical_issues,
@@ -311,11 +311,7 @@
             const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             try {
-                // FIX 1: Change to POST method to match the backend handler
-                const response = await fetch(`${BASE_API_URL}/api/storyblok`, {
-                    method: 'POST'
-                });
-
+                const response = await fetch(`${BASE_API_URL}/api/storyblok`);
                 const data = await response.json();
                 const stories = data.stories.map(story => ({
                     id: story.id,
