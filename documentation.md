@@ -19,12 +19,14 @@ The application is built as a single-page application (index.html) that communic
 ## Project Structure & Integrations
 The project is structured to work seamlessly with a Vercel deployment. It consists of the following components:
 
+```
 /
 ├── api/
 │   ├── gemini-scan.js
 │   └── storyblok.js
 ├── index.html
 └── documentation.md
+```
 
 ## Integrations Used:
 
