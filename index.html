@@ -141,6 +141,10 @@
                 <span class="text-lg font-medium text-gray-600 mr-2">Score:</span>
                 <span id="modal-score" class="text-2xl font-bold text-green-600"></span>
             </div>
+            <div id="modal-url-section" class="mb-4 hidden">
+                <p class="text-lg font-medium text-gray-600">URL:</p>
+                <a id="modal-url" href="#" target="_blank" class="text-blue-500 hover:underline break-words"></a>
+            </div>
 
             <div id="critical-issues-section" class="mb-4">
                 <h4 class="text-lg font-semibold text-red-600 mb-2"><i class="fas fa-skull-crossbones mr-2"></i>Critical Issues (<span id="critical-count"></span>)</h4>
@@ -191,7 +195,7 @@
                 const payload = urlRegex.test(content) ? { url: content } : { html: content };
 
                 try {
-                    const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
+                    const response = await fetch(`${BASE_API_URL}/api/gemini-scan-2`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -204,19 +208,25 @@
                     
                     const scanResult = await response.json();
                     
+                    const currentDate = new Date().toISOString().split('T')[0];
+                    const currentStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                    
+                    const todayScans = currentStories.filter(story => story.last_analyzed === currentDate);
+                    const scanNumber = todayScans.length + 1;
+                    
                     const newStory = {
-                        name: `On-Demand Scan (${new Date().toLocaleDateString()})`,
+                        name: urlRegex.test(content) ? `On-Demand Scan #${scanNumber}` : `On-Demand Scan #${scanNumber} (HTML Content)`,
+                        url: urlRegex.test(content) ? content : '',
                         accessibility_score: scanResult.score,
                         warnings: scanResult.warnings,
                         critical_issues: scanResult.critical_issues,
-                        last_analyzed: new Date().toISOString().split('T')[0]
+                        last_analyzed: currentDate
                     };
 
-                    const currentStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
                     currentStories.unshift(newStory); 
                     localStorage.setItem('accessibility_stories', JSON.stringify(currentStories));
 
-                    fetchDashboardData(); // Call fetchDashboardData to re-render the dashboard with all stories
+                    fetchDashboardData();
                 } catch (error) {
                     console.error('API Error:', error);
                     let errorMessage = 'An error occurred during the analysis. Please check your Vercel environment variables or try again later.';
@@ -270,13 +280,23 @@
 
         function showStoryDetails(story) {
             const detailsModal = document.getElementById('details-modal');
-            
+            const urlSection = document.getElementById('modal-url-section');
+            const urlLink = document.getElementById('modal-url');
+
             document.getElementById('modal-story-name').textContent = story.name;
             document.getElementById('modal-last-analyzed').textContent = story.last_analyzed;
             
             const scoreElement = document.getElementById('modal-score');
             scoreElement.textContent = story.accessibility_score + '%';
             scoreElement.className = story.accessibility_score > 90 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-yellow-600';
+
+            if (story.url && story.url !== '') {
+                urlLink.textContent = story.url;
+                urlLink.href = story.url;
+                urlSection.classList.remove('hidden');
+            } else {
+                urlSection.classList.add('hidden');
+            }
 
             const criticalIssuesList = document.getElementById('critical-issues-list');
             const warningsList = document.getElementById('warnings-list');
@@ -308,7 +328,6 @@
             const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             try {
-                // FIX: Updated the API URL to correctly call the storyblok-2.js endpoint
                 const response = await fetch(`${BASE_API_URL}/api/storyblok-2`);
                 if (!response.ok) {
                     throw new Error(`Storyblok API call failed with status ${response.status}`);
@@ -398,6 +417,3 @@
             document.getElementById('total-warnings').textContent = totalWarnings;
             document.getElementById('total-critical').textContent = totalCritical;
         }
-    </script>
-</body>
-</html>
