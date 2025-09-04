@@ -161,57 +161,6 @@
     </div>
 
     <script>
-        // Use a placeholder for your Storyblok token and space ID
-        const STORYBLOK_TOKEN = 'ha24kA3LW8aA0BCrIKUTQQtt';
-        const STORYBLOK_SPACE_ID = '286929590999487';
-        const STORYBLOK_API_URL = `https://api.storyblok.com/v2/cdn/stories/?token=${STORYBLOK_TOKEN}&starts_with=`;
-        
-        async function runAccessibilityScan(content) {
-            const systemPrompt = `Analyze the provided content for accessibility issues. Evaluate it based on common accessibility standards (WCAG). Provide a single JSON object with a numeric 'score' out of 100, an array of strings for 'warnings', and an array of strings for 'critical_issues'. The issues should be specific and actionable.`;
-            const userQuery = content;
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                tools: [{ "google_search": {} }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            "score": { "type": "NUMBER" },
-                            "warnings": { "type": "ARRAY", "items": { "type": "STRING" } },
-                            "critical_issues": { "type": "ARRAY", "items": { "type": "STRING" } }
-                        },
-                        "propertyOrdering": ["score", "warnings", "critical_issues"]
-                    }
-                }
-            };
-            
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error('Gemini API request failed.');
-            }
-
-            const result = await response.json();
-            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (jsonText) {
-                return JSON.parse(jsonText);
-            } else {
-                throw new Error('Invalid response format from Gemini API.');
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
 
@@ -222,6 +171,9 @@
             const messageBox = document.getElementById('message-box');
             const closeMessageBoxButton = document.getElementById('close-message-box');
             const detailsModal = document.getElementById('details-modal');
+
+            // Define the base URL for the serverless functions.
+            const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             scanButton.addEventListener('click', async () => {
                 const content = scanInput.value;
@@ -234,39 +186,63 @@
                 scanButtonText.textContent = 'Analyzing...';
                 scanLoading.classList.remove('hidden');
 
-                let newStory;
                 try {
-                    const scanResult = await runAccessibilityScan(content);
-                    newStory = {
+                    const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: content })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error);
+                    }
+                    
+                    const scanResult = await response.json();
+                    
+                    const newStory = {
                         name: `On-Demand Scan (${new Date().toLocaleDateString()})`,
                         accessibility_score: scanResult.score,
                         warnings: scanResult.warnings,
                         critical_issues: scanResult.critical_issues,
                         last_analyzed: new Date().toISOString().split('T')[0]
                     };
+
+                    const currentStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                    currentStories.unshift(newStory); 
+                    localStorage.setItem('accessibility_stories', JSON.stringify(currentStories));
+
+                    renderDashboard(currentStories);
                 } catch (error) {
                     console.error('API Error:', error);
-                    alert('An error occurred during the analysis. Please try again.');
+                    let errorMessage = 'An error occurred during the analysis. Please check your Vercel environment variables or try again later.';
+
+                    // Check for a specific network-related error message
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMessage = 'Failed to connect to the analysis server. Please ensure the app is deployed and running on a valid domain.';
+                    } else {
+                        errorMessage = error.message;
+                    }
+
+                    // Use the custom message box instead of alert
+                    const modal = document.getElementById('message-box');
+                    modal.querySelector('h3').textContent = 'Analysis Failed';
+                    modal.querySelector('p').textContent = errorMessage;
+                    modal.style.display = 'flex';
+
+                } finally {
                     scanButton.disabled = false;
                     scanButtonText.textContent = 'Analyze Content';
                     scanLoading.classList.add('hidden');
-                    return;
+                    scanInput.value = '';
                 }
-
-                const currentStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
-                currentStories.unshift(newStory); 
-                localStorage.setItem('accessibility_stories', JSON.stringify(currentStories));
-
-                renderDashboard(currentStories);
-
-                scanButton.disabled = false;
-                scanButtonText.textContent = 'Analyze Content';
-                scanLoading.classList.add('hidden');
-                scanInput.value = '';
             });
 
             closeMessageBoxButton.addEventListener('click', () => {
                 messageBox.style.display = 'none';
+                // Reset modal content to default for future use
+                messageBox.querySelector('h3').textContent = 'Input Required';
+                messageBox.querySelector('p').textContent = 'Please enter a URL or HTML content to analyze.';
             });
             
             document.getElementById('story-list').addEventListener('click', (event) => {
@@ -325,8 +301,11 @@
             const loadingIndicator = document.getElementById('loading-indicator');
             loadingIndicator.style.display = 'block';
 
+            // Define the base URL for the serverless functions.
+            const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
+
             try {
-                const response = await fetch(STORYBLOK_API_URL);
+                const response = await fetch(`${BASE_API_URL}/api/storyblok`);
                 const data = await response.json();
                 const stories = data.stories.map(story => ({
                     id: story.id,
@@ -344,13 +323,22 @@
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
+                let errorMessage = 'Failed to load data. Falling back to mock data.';
+                
+                // Check for a specific network-related error
+                if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('URL is not valid'))) {
+                     errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain. Falling back to mock data.';
+                } else {
+                    errorMessage = `An error occurred: ${error.message}. Falling back to mock data.`;
+                }
+
                 const mockData = [
                     { id: 1, name: 'Homepage', accessibility_score: 95, warnings: ["Low contrast text on non-accessible background."], critical_issues: [], last_analyzed: '2025-09-03' },
                     { id: 2, name: 'About Us', accessibility_score: 82, warnings: ["Image does not have an alt attribute.", "Button lacks an accessible name."], critical_issues: ["Missing a required ARIA role."], last_analyzed: '2025-09-02' },
                     { id: 3, name: 'Blog Post: The Future of AI', accessibility_score: 78, warnings: ["The heading structure is not logical."], critical_issues: ["Keyboard focus is not visible."], last_analyzed: '2025-09-01' },
                     { id: 4, name: 'Contact Page', accessibility_score: 98, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' },
                 ];
-                loadingIndicator.innerHTML = '<p class="text-red-500">Failed to load data. Falling back to mock data.</p>';
+                loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
                 renderDashboard(mockData);
             }
         }
