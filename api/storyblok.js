@@ -3,7 +3,8 @@ export const config = {
 };
 
 export default async function handler(req) {
-  if (req.method !== 'POST') {
+  // FIX: Change to allow GET requests from the frontend
+  if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
       status: 405,
       headers: { 'Content-Type': 'application/json' },
@@ -39,7 +40,7 @@ export default async function handler(req) {
 
   } catch (error) {
     console.error("Error fetching from Storyblok API:", error);
-    return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
+    return new Response(JSON.stringify({ error: error.message || 'An error occurred fetching Storyblok content.' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
