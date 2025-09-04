@@ -1,44 +1,67 @@
-/ Handler function for Vercel Serverless Function
-export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
+import fetch from 'node-fetch';
+
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { url } = await req.json();
+
+  if (!url) {
+    return new Response(JSON.stringify({ error: 'Missing URL parameter' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const previewToken = process.env.STORYBLOK_PREVIEW_TOKEN;
+  const spaceId = process.env.STORYBLOK_SPACE_ID;
+
+  if (!previewToken || !spaceId) {
+    return new Response(JSON.stringify({ error: 'Storyblok API credentials not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories/?starts_with=${url}&version=draft&token=${previewToken}&space_id=${spaceId}`;
+
+  try {
+    const response = await fetch(storyblokApiUrl);
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Storyblok API call failed with status ${response.status}: ${errorData}`);
     }
 
-    const { url } = req.body;
+    const data = await response.json();
+    const stories = data.stories;
 
-    if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
+    if (!stories || stories.length === 0) {
+      return new Response(JSON.stringify({ error: 'Story not found.' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    try {
-        const STORYBLOK_PREVIEW_TOKEN = process.env.STORYBLOK_PREVIEW_TOKEN;
-        const STORYBLOK_SPACE_ID = process.env.STORYBLOK_SPACE_ID;
+    // Return the content of the first story found
+    return new Response(JSON.stringify({ content: stories[0].content }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
-        if (!STORYBLOK_SPACE_ID) {
-             return res.status(500).json({ error: 'Storyblok space ID is not configured.' });
-        }
-
-        const storyblokApiUrl = `https://api.storyblok.com/v2/cdn/stories?starts_with=${url}&version=draft&token=${STORYBLOK_PREVIEW_TOKEN}&space_id=${STORYBLOK_SPACE_ID}`;
-
-        const response = await fetch(storyblokApiUrl);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Storyblok API call failed');
-        }
-
-        const data = await response.json();
-        const stories = data.stories;
-
-        if (!stories || stories.length === 0) {
-            return res.status(404).json({ error: 'No stories found for this URL.' });
-        }
-
-        const content = stories[0].content;
-        res.status(200).json({ content });
-
-    } catch (error) {
-        console.error('An unexpected error occurred:', error);
-        res.status(500).json({ error: error.message });
-    }
+  } catch (error) {
+    console.error("Error fetching from Storyblok API:", error);
+    return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 }
