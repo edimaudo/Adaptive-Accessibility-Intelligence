@@ -53,7 +53,6 @@ export default async function handler(req) {
     }
   }
 
-  // UPDATED SYSTEM PROMPT FOR STRICT JSON OUTPUT
   const systemPrompt = `
     You are an AI accessibility auditor. Your task is to perform a detailed accessibility audit of the given content.
     Return the results in a single, plain JSON object.
@@ -86,8 +85,9 @@ export default async function handler(req) {
     const result = await finalResponse.json();
     const textResult = result.candidates[0].content.parts[0].text;
     
-    // Attempt to parse the JSON. Trim whitespace for robustness.
-    const data = JSON.parse(textResult.trim());
+    // FIX: Clean the string by removing the code fence and any surrounding whitespace
+    const cleanText = textResult.trim().replace(/^```json\n|```$/g, '');
+    const data = JSON.parse(cleanText);
 
     return new Response(JSON.stringify(data), {
       status: 200,
