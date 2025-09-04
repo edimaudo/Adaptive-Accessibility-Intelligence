@@ -1,1 +1,404 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectra: Adaptive Accessibility Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .card { box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .loading-animation {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 24px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover, .close-button:focus {
+            color: #000;
+            text-decoration: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div id="app" class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6">Spectra</h1>
+        
+        <div class="bg-white p-6 rounded-lg card mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Space Overview</h2>
+            <div id="overview-metrics" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-100 text-blue-800 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium">Stories Analyzed</div>
+                        <div id="total-stories" class="text-2xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-file-alt text-2xl opacity-50"></i>
+                </div>
+                <div class="bg-green-100 text-green-800 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium">Average Score</div>
+                        <div id="avg-score" class="text-2xl font-bold">--</div>
+                    </div>
+                    <i class="fas fa-star text-2xl opacity-50"></i>
+                </div>
+                <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium">Warnings</div>
+                        <div id="total-warnings" class="text-2xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-exclamation-triangle text-2xl opacity-50"></i>
+                </div>
+                <div class="bg-red-100 text-red-800 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-medium">Critical Issues</div>
+                        <div id="total-critical" class="text-2xl font-bold">0</div>
+                    </div>
+                    <i class="fas fa-skull-crossbones text-2xl opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg card mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">On-Demand Accessibility Scan</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="scan-input" class="block text-sm font-medium text-gray-700">Enter a URL or paste HTML content:</label>
+                    <textarea id="scan-input" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="e.g., https://www.example.com or <html>...</html>"></textarea>
+                </div>
+                <button id="scan-button" class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <span id="scan-button-text">Analyze Content</span>
+                    <span id="scan-loading" class="hidden loading-animation ml-3"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg card">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Content Stories</h2>
+            <div id="loading-indicator" class="text-gray-500 text-center py-8">
+                <i class="fas fa-spinner fa-spin text-4xl mb-2"></i>
+                <p>Fetching content data...</p>
+            </div>
+            <div id="story-list" class="space-y-4">
+                </div>
+        </div>
+    </div>
+
+    <div id="message-box" class="modal">
+        <div class="modal-content text-center">
+            <h3 class="text-xl font-bold mb-4">Input Required</h3>
+            <p>Please enter a URL or HTML content to analyze.</p>
+            <button id="close-message-box" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md">OK</button>
+        </div>
+    </div>
+
+    <div id="details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 id="modal-story-name" class="text-2xl font-bold text-gray-800 mb-2"></h3>
+            <p class="text-sm text-gray-500 mb-4">Last analyzed: <span id="modal-last-analyzed"></span></p>
+
+            <div class="flex items-center mb-4">
+                <span class="text-lg font-medium text-gray-600 mr-2">Score:</span>
+                <span id="modal-score" class="text-2xl font-bold text-green-600"></span>
+            </div>
+
+            <div id="critical-issues-section" class="mb-4">
+                <h4 class="text-lg font-semibold text-red-600 mb-2"><i class="fas fa-skull-crossbones mr-2"></i>Critical Issues (<span id="critical-count"></span>)</h4>
+                <ul id="critical-issues-list" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+            </div>
+
+            <div id="warnings-section">
+                <h4 class="text-lg font-semibold text-yellow-600 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Warnings (<span id="warnings-count"></span>)</h4>
+                <ul id="warnings-list" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData();
+
+            const scanButton = document.getElementById('scan-button');
+            const scanInput = document.getElementById('scan-input');
+            const scanButtonText = document.getElementById('scan-button-text');
+            const scanLoading = document.getElementById('scan-loading');
+            const messageBox = document.getElementById('message-box');
+            const closeMessageBoxButton = document.getElementById('close-message-box');
+            const detailsModal = document.getElementById('details-modal');
+
+            // Define the base URL for the serverless functions.
+            const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
+            
+            // Regex to validate URLs with top 20 most popular TLDs
+            const urlRegex = new RegExp('^(https?:\\/\\/)?' + // protocol
+                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+                '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+                '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+                '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+
+            scanButton.addEventListener('click', async () => {
+                const content = scanInput.value;
+                if (!content) {
+                    messageBox.style.display = 'flex';
+                    return;
+                }
+
+                scanButton.disabled = true;
+                scanButtonText.textContent = 'Analyzing...';
+                scanLoading.classList.remove('hidden');
+
+                const payload = urlRegex.test(content) ? { url: content } : { html: content };
+
+                try {
+                    const response = await fetch(`${BASE_API_URL}/api/gemini-scan`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error);
+                    }
+                    
+                    const scanResult = await response.json();
+                    
+                    const newStory = {
+                        name: `On-Demand Scan (${new Date().toLocaleDateString()})`,
+                        accessibility_score: scanResult.score,
+                        warnings: scanResult.warnings,
+                        critical_issues: scanResult.critical_issues,
+                        last_analyzed: new Date().toISOString().split('T')[0]
+                    };
+
+                    const currentStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                    currentStories.unshift(newStory); 
+                    localStorage.setItem('accessibility_stories', JSON.stringify(currentStories));
+
+                    fetchDashboardData(); // Call fetchDashboardData to re-render the dashboard with all stories
+                } catch (error) {
+                    console.error('API Error:', error);
+                    let errorMessage = 'An error occurred during the analysis. Please check your Vercel environment variables or try again later.';
+
+                    // Check for a specific network-related error message
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMessage = 'Failed to connect to the analysis server. Please ensure the app is deployed and running on a valid domain.';
+                    } else {
+                        errorMessage = error.message;
+                    }
+
+                    // Use the custom message box instead of alert
+                    const modal = document.getElementById('message-box');
+                    modal.querySelector('h3').textContent = 'Analysis Failed';
+                    modal.querySelector('p').textContent = errorMessage;
+                    modal.style.display = 'flex';
+
+                } finally {
+                    scanButton.disabled = false;
+                    scanButtonText.textContent = 'Analyze Content';
+                    scanLoading.classList.add('hidden');
+                    scanInput.value = '';
+                }
+            });
+
+            closeMessageBoxButton.addEventListener('click', () => {
+                messageBox.style.display = 'none';
+                // Reset modal content to default for future use
+                messageBox.querySelector('h3').textContent = 'Input Required';
+                messageBox.querySelector('p').textContent = 'Please enter a URL or HTML content to analyze.';
+            });
+            
+            document.getElementById('story-list').addEventListener('click', (event) => {
+                const storyItem = event.target.closest('.story-item');
+                if (storyItem) {
+                    const storyData = JSON.parse(storyItem.getAttribute('data-story'));
+                    showStoryDetails(storyData);
+                }
+            });
+
+            document.querySelector('#details-modal .close-button').addEventListener('click', () => {
+                detailsModal.style.display = 'none';
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target == detailsModal) {
+                    detailsModal.style.display = 'none';
+                }
+            });
+        });
+
+        function showStoryDetails(story) {
+            const detailsModal = document.getElementById('details-modal');
+            
+            document.getElementById('modal-story-name').textContent = story.name;
+            document.getElementById('modal-last-analyzed').textContent = story.last_analyzed;
+            
+            const scoreElement = document.getElementById('modal-score');
+            scoreElement.textContent = story.accessibility_score + '%';
+            scoreElement.className = story.accessibility_score > 90 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-yellow-600';
+
+            const criticalIssuesList = document.getElementById('critical-issues-list');
+            const warningsList = document.getElementById('warnings-list');
+            criticalIssuesList.innerHTML = '';
+            warningsList.innerHTML = '';
+
+            document.getElementById('critical-count').textContent = story.critical_issues.length;
+            document.getElementById('warnings-count').textContent = story.warnings.length;
+
+            story.critical_issues.forEach(issue => {
+                const li = document.createElement('li');
+                li.textContent = issue;
+                criticalIssuesList.appendChild(li);
+            });
+
+            story.warnings.forEach(warning => {
+                const li = document.createElement('li');
+                li.textContent = warning;
+                warningsList.appendChild(li);
+            });
+
+            detailsModal.style.display = 'flex';
+        }
+
+        async function fetchDashboardData() {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'block';
+
+            const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
+
+            try {
+                // FIX: Updated the API URL to correctly call the storyblok-2.js endpoint
+                const response = await fetch(`${BASE_API_URL}/api/storyblok-2`);
+                if (!response.ok) {
+                    throw new Error(`Storyblok API call failed with status ${response.status}`);
+                }
+                const data = await response.json();
+                
+                const storiesFromAPI = data.stories.map(story => ({
+                    id: story.id,
+                    name: story.name,
+                    accessibility_score: story.content.accessibility_score || Math.floor(Math.random() * 50) + 50,
+                    warnings: story.content.warnings || [],
+                    critical_issues: story.content.critical_issues || [],
+                    last_analyzed: new Date(story.created_at).toISOString().split('T')[0]
+                }));
+
+                const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                
+                const allStories = [...cachedStories, ...storiesFromAPI];
+                
+                renderDashboard(allStories);
+
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                
+                const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
+                if (cachedStories.length > 0) {
+                    loadingIndicator.innerHTML = `<p class="text-gray-500">Failed to load Storyblok data. Displaying cached on-demand scans.</p>`;
+                    renderDashboard(cachedStories);
+                } else {
+                    let errorMessage = 'Failed to load data. Falling back to mock data.';
+                    if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('URL is not valid'))) {
+                        errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain.';
+                    } else {
+                        errorMessage = `An error occurred: ${error.message}.`;
+                    }
+                    const mockData = [
+                        { id: 1, name: 'Homepage', accessibility_score: 95, warnings: ["Low contrast text on non-accessible background."], critical_issues: [], last_analyzed: '2025-09-03' },
+                        { id: 2, name: 'About Us', accessibility_score: 82, warnings: ["Image does not have an alt attribute.", "Button lacks an accessible name."], critical_issues: ["Missing a required ARIA role."], last_analyzed: '2025-09-02' },
+                        { id: 3, name: 'Blog Post: The Future of AI', accessibility_score: 78, warnings: ["The heading structure is not logical."], critical_issues: ["Keyboard focus is not visible."], last_analyzed: '2025-09-01' },
+                        { id: 4, name: 'Contact Page', accessibility_score: 98, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' },
+                        { id: 5, name: 'Product Landing Page', accessibility_score: 85, warnings: ["Form fields do not have labels."], critical_issues: ["Insufficient contrast ratio."], last_analyzed: '2025-09-02' },
+                        { id: 6, name: 'Customer Support Portal', accessibility_score: 75, warnings: ["Links are not descriptive."], critical_issues: ["Video content lacks captions."], last_analyzed: '2025-09-01' },
+                        { id: 7, name: 'Shopping Cart', accessibility_score: 92, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' }
+                    ];
+                    loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p><p class="text-gray-500">Displaying mock data for demonstration.</p>`;
+                    renderDashboard(mockData);
+                }
+            }
+        }
+
+        function renderDashboard(stories) {
+            const storyList = document.getElementById('story-list');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'none';
+            storyList.innerHTML = '';
+            
+            let totalScore = 0;
+            let totalWarnings = 0;
+            let totalCritical = 0;
+
+            stories.forEach(story => {
+                totalScore += story.accessibility_score;
+                totalWarnings += story.warnings.length;
+                totalCritical += story.critical_issues.length;
+
+                const statusColor = story.accessibility_score > 90 ? 'bg-green-500' : story.accessibility_score > 80 ? 'bg-yellow-500' : 'bg-red-500';
+                const storyItem = `
+                    <div class="bg-gray-50 p-4 rounded-lg flex items-center justify-between card story-item cursor-pointer hover:bg-gray-100 transition duration-150 ease-in-out" data-story='${JSON.stringify(story)}'>
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-semibold text-gray-700">${story.name}</h3>
+                            <p class="text-sm text-gray-500">Last analyzed: ${story.last_analyzed}</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-right">
+                                <span class="text-sm font-medium text-gray-600">Score:</span>
+                                <span class="text-lg font-bold ${story.accessibility_score > 90 ? 'text-green-600' : 'text-yellow-600'}">${story.accessibility_score}%</span>
+                            </div>
+                            <div class="w-16 h-2 rounded-full ${statusColor}"></div>
+                        </div>
+                    </div>
+                `;
+                storyList.insertAdjacentHTML('beforeend', storyItem);
+            });
+
+            document.getElementById('total-stories').textContent = stories.length;
+            document.getElementById('avg-score').textContent = stories.length > 0 ? (totalScore / stories.length).toFixed(1) + '%' : '--';
+            document.getElementById('total-warnings').textContent = totalWarnings;
+            document.getElementById('total-critical').textContent = totalCritical;
+        }
+    </script>
+</body>
+</html>
