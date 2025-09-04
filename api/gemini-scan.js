@@ -10,7 +10,7 @@ export default async function handler(req) {
     });
   }
 
-  // FIX: Accept both URL and HTML parameters
+  // FIX: Accept both URL and HTML parameters from the request body
   const { url, html } = await req.json();
   let auditContent = '';
 
@@ -35,6 +35,7 @@ export default async function handler(req) {
 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
+  // Step 1: Perform the search to get grounded content
   let groundedContent = '';
   if (url) {
     const searchPayload = {
@@ -54,6 +55,7 @@ export default async function handler(req) {
     }
   }
 
+  // FIX: Updated the system prompt to return a clean JSON object
   const systemPrompt = `
     You are an AI accessibility auditor. Your task is to perform a detailed accessibility audit of the given content.
     Return the results in a single, plain JSON object.
