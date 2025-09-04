@@ -308,7 +308,8 @@
             const BASE_API_URL = 'https://adaptive-accessibility-intelligence.vercel.app';
 
             try {
-                const response = await fetch(`${BASE_API_URL}/api/storyblok`);
+                // FIX: Updated the API URL to correctly call the storyblok-2.js endpoint
+                const response = await fetch(`${BASE_API_URL}/api/storyblok-2`);
                 if (!response.ok) {
                     throw new Error(`Storyblok API call failed with status ${response.status}`);
                 }
@@ -325,7 +326,6 @@
 
                 const cachedStories = JSON.parse(localStorage.getItem('accessibility_stories') || '[]');
                 
-                // FIX: Combine both sets of stories instead of choosing one
                 const allStories = [...cachedStories, ...storiesFromAPI];
                 
                 renderDashboard(allStories);
@@ -340,9 +340,9 @@
                 } else {
                     let errorMessage = 'Failed to load data. Falling back to mock data.';
                     if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('URL is not valid'))) {
-                        errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain. Falling back to mock data.';
+                        errorMessage = 'Failed to connect to the server. Please ensure the app is deployed and running on a valid domain.';
                     } else {
-                        errorMessage = `An error occurred: ${error.message}. Falling back to mock data.`;
+                        errorMessage = `An error occurred: ${error.message}.`;
                     }
                     const mockData = [
                         { id: 1, name: 'Homepage', accessibility_score: 95, warnings: ["Low contrast text on non-accessible background."], critical_issues: [], last_analyzed: '2025-09-03' },
@@ -353,7 +353,7 @@
                         { id: 6, name: 'Customer Support Portal', accessibility_score: 75, warnings: ["Links are not descriptive."], critical_issues: ["Video content lacks captions."], last_analyzed: '2025-09-01' },
                         { id: 7, name: 'Shopping Cart', accessibility_score: 92, warnings: [], critical_issues: [], last_analyzed: '2025-09-03' }
                     ];
-                    loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p>`;
+                    loadingIndicator.innerHTML = `<p class="text-red-500">${errorMessage}</p><p class="text-gray-500">Displaying mock data for demonstration.</p>`;
                     renderDashboard(mockData);
                 }
             }
