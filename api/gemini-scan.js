@@ -53,12 +53,18 @@ export default async function handler(req) {
     }
   }
 
+  // UPDATED SYSTEM PROMPT FOR STRICT JSON OUTPUT
   const systemPrompt = `
-    You are an AI accessibility auditor. Your task is to perform an accessibility audit of the given content. Provide the results in a JSON format.
-    The JSON object should have two keys: "summary" and "report".
-    The "summary" key should contain a concise paragraph summarizing the overall accessibility status of the page.
-    The "report" key should contain a detailed, structured report in Markdown format, with sections for each major accessibility issue found.
-    Crucially, return ONLY the JSON object. Do not include any other text, explanations, or code fences outside of the JSON.
+    You are an AI accessibility auditor. Your task is to perform a detailed accessibility audit of the given content.
+    Return the results in a single, plain JSON object.
+    
+    The JSON object must have the following keys:
+    - "summary": A concise paragraph summarizing the overall accessibility status.
+    - "score": A numerical accessibility score from 0 to 100.
+    - "critical_issues": An array of strings, each describing a critical accessibility issue. If none, an empty array.
+    - "warnings": An array of strings, each describing a warning or minor issue. If none, an empty array.
+    
+    IMPORTANT: Do not include any extra text, Markdown, code blocks (e.g., \`\`\`json), or explanations before or after the JSON. Return only the raw JSON string.
   `;
 
   const finalPayload = {
@@ -79,7 +85,9 @@ export default async function handler(req) {
 
     const result = await finalResponse.json();
     const textResult = result.candidates[0].content.parts[0].text;
-    const data = JSON.parse(textResult);
+    
+    // Attempt to parse the JSON. Trim whitespace for robustness.
+    const data = JSON.parse(textResult.trim());
 
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -87,7 +95,7 @@ export default async function handler(req) {
     });
   } catch (error) {
     console.error("Gemini API call failed:", error);
-    return new Response(JSON.stringify({ error: error.message || 'An error occurred during the scan.' }), {
+    return new Response(JSON.stringify({ error: `An error occurred during the scan. Could not parse JSON from Gemini API. Original error: ${error.message}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
